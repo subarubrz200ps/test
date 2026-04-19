@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>医療情報エビデンス評価</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <main>
+      <h1>医療情報エビデンス評価（試作）</h1>
+      <p>Google検索結果を、権威性・一致度・エビデンスレベルでスコア化します。</p>
+
+      <section class="search-box">
+        <input id="query" placeholder="例: 慢性腰痛 運動療法 効果" />
+        <button id="run">評価する</button>
+      </section>
+
+      <section id="summary" class="card hidden"></section>
+      <section id="details" class="card hidden"></section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

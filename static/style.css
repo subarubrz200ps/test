@@ -1,0 +1,54 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", sans-serif;
+  background: #f6f8fb;
+  margin: 0;
+}
+
+main {
+  max-width: 920px;
+  margin: 32px auto;
+  padding: 0 16px;
+}
+
+h1 {
+  margin-bottom: 8px;
+}
+
+.search-box {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+input {
+  flex: 1;
+  padding: 10px;
+}
+
+button {
+  padding: 10px 16px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.hidden { display: none; }
+
+.high { color: #0f8a3a; }
+.mid { color: #b07a00; }
+.low { color: #b00020; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  border-bottom: 1px solid #e8edf3;
+  padding: 8px;
+  text-align: left;
+}
