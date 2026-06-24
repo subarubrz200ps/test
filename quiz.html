@@ -1,0 +1,848 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>クイズ選択 → 四択テスト</title>
+  <style>
+    :root{
+      --bg:#ffffff; --bg2:#f6f7fb; --card:#ffffff;
+      --text:#111827; --muted:#6b7280;
+      --accent:#2563eb; --accent2:#1d4ed8;
+      --good:#16a34a; --bad:#dc2626; --warn:#b45309;
+      --line:rgba(17,24,39,.12); --chip:rgba(17,24,39,.04);
+      --shadow:0 12px 24px rgba(17,24,39,.08);
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN","Hiragino Sans",Meiryo,sans-serif;
+      background:linear-gradient(180deg,var(--bg),var(--bg2));
+      color:var(--text);
+    }
+    a{ color:inherit; }
+    .wrap{ max-width:1100px; margin:0 auto; padding:22px 14px 56px; }
+    header{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:12px; }
+    h1{ margin:0; font-size:22px; letter-spacing:.02em; }
+    .meta{ color:var(--muted); font-size:13px; }
+    .card{ background:var(--card); border:1px solid var(--line); border-radius:18px; padding:16px; box-shadow:var(--shadow); }
+
+    button{
+      border:1px solid rgba(17,24,39,.14); background:#fff; color:var(--text);
+      padding:10px 12px; border-radius:12px; cursor:pointer; font-weight:800;
+    }
+    button:hover{ border-color:rgba(37,99,235,.35); }
+    button.primary{ background:rgba(37,99,235,.10); border-color:rgba(37,99,235,.35); color:var(--accent2); }
+    button.primary:hover{ background:rgba(37,99,235,.14); border-color:rgba(37,99,235,.45); }
+    button.danger{ background:rgba(220,38,38,.08); border-color:rgba(220,38,38,.35); color:var(--bad); }
+    button.danger:hover{ background:rgba(220,38,38,.10); border-color:rgba(220,38,38,.45); }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+
+    select{ border:1px solid rgba(17,24,39,.14); border-radius:10px; padding:6px 10px; background:#fff; color:var(--text); font-weight:700; }
+
+    /* ====== Home ====== */
+    #home{ display:block; }
+    .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    @media(max-width:980px){ .grid{ grid-template-columns:repeat(2,1fr); } }
+    @media(max-width:640px){ .grid{ grid-template-columns:1fr; } }
+
+    .qcard{ border:1px solid rgba(17,24,39,.12); background:#fff; border-radius:18px; overflow:hidden; display:flex; flex-direction:column; min-height:330px; box-shadow:0 10px 18px rgba(17,24,39,.06); }
+    .thumb{ width:100%; aspect-ratio:16/9; object-fit:cover; background:rgba(17,24,39,.04); border-bottom:1px solid rgba(17,24,39,.10); }
+    .qbody{ padding:14px; display:flex; flex-direction:column; gap:10px; flex:1; }
+    .qtitle{ font-size:16px; font-weight:900; margin:0; }
+    .qdesc{ margin:0; color:var(--muted); font-size:13px; line-height:1.6; flex:1; }
+    .qmeta{ display:flex; gap:8px; flex-wrap:wrap; }
+    .chip{ font-size:12px; padding:6px 10px; border-radius:999px; background:var(--chip); border:1px solid rgba(17,24,39,.10); color:var(--muted); }
+    .qactions{ display:flex; gap:10px; flex-wrap:wrap; }
+
+    /* ====== App ====== */
+    #app{ display:none; }
+    .layout{ display:grid; grid-template-columns:1fr 320px; gap:12px; align-items:start; }
+    @media(max-width:980px){ .layout{ grid-template-columns:1fr; } }
+    .row{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    label.toggle{ display:flex; gap:8px; align-items:center; color:var(--muted); font-size:13px; user-select:none; }
+    input[type="checkbox"]{ transform:translateY(1px); }
+    .progress{ color:var(--muted); font-size:13px; }
+    .timer{ font-variant-numeric:tabular-nums; font-weight:900; }
+    .timer.warn{ color:var(--warn); }
+    .timer.dead{ color:var(--bad); }
+
+    .q{ font-size:18px; line-height:1.55; margin:10px 0 14px; }
+    .choices{ display:grid; gap:10px; }
+    .choice{
+      display:flex; gap:10px; align-items:flex-start;
+      padding:12px; border-radius:14px;
+      border:1px solid rgba(17,24,39,.12); background:#fff;
+      cursor:pointer; user-select:none;
+    }
+    .choice:hover{ border-color:rgba(37,99,235,.35); background:rgba(37,99,235,.04); }
+    .badge{ width:26px; height:26px; border-radius:9px; display:grid; place-items:center; flex:0 0 auto; background:rgba(37,99,235,.12); border:1px solid rgba(37,99,235,.25); font-weight:900; color:var(--accent2); }
+    .choice.selected{ border-color:rgba(37,99,235,.55); background:rgba(37,99,235,.06); }
+    .choice.disabled{ cursor:default; opacity:.98; }
+    .choice.correct{ border-color:rgba(22,163,74,.45); background:rgba(22,163,74,.06); }
+    .choice.wrong{ border-color:rgba(220,38,38,.45); background:rgba(220,38,38,.06); }
+    .choice.correct .badge{ background:rgba(22,163,74,.10); border-color:rgba(22,163,74,.25); color:var(--good); }
+    .choice.wrong .badge{ background:rgba(220,38,38,.10); border-color:rgba(220,38,38,.25); color:var(--bad); }
+
+    .hint{ margin-top:12px; padding:12px; border-radius:14px; border:1px solid rgba(17,24,39,.12); background:rgba(17,24,39,.02); color:var(--muted); font-size:13px; line-height:1.6; display:none; white-space:pre-wrap; }
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; }
+
+    .sideTitle{ margin:0 0 10px; font-size:14px; color:var(--muted); }
+    .panel{ display:grid; gap:10px; }
+    .box{ border:1px solid rgba(17,24,39,.12); background:#fff; border-radius:16px; padding:12px; }
+    .gridNav{ display:grid; grid-template-columns:repeat(8,1fr); gap:8px; }
+    @media(max-width:980px){ .gridNav{ grid-template-columns:repeat(10,1fr); } }
+    .navBtn{ padding:8px 0; border-radius:10px; border:1px solid rgba(17,24,39,.12); background:#fff; color:var(--text); font-weight:900; cursor:pointer; user-select:none; font-variant-numeric:tabular-nums; }
+    .navBtn.current{ border-color:rgba(37,99,235,.45); background:rgba(37,99,235,.06); color:var(--accent2); }
+    .navBtn.answered{ border-color:rgba(22,163,74,.35); }
+    .navBtn.review{ border-color:rgba(180,83,9,.35); background:rgba(180,83,9,.06); }
+
+    .chipRow{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .result{ display:none; margin-top:14px; padding:16px; border-radius:16px; border:1px solid rgba(17,24,39,.12); background:#fff; }
+    .result h2{ margin:0 0 6px; font-size:18px; }
+    .pillbar{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .pill{ font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid rgba(17,24,39,.12); color:var(--muted); background:rgba(17,24,39,.02); }
+    .pill.ok{ border-color:rgba(22,163,74,.35); color:var(--good); background:rgba(22,163,74,.05); }
+    .pill.ng{ border-color:rgba(220,38,38,.35); color:var(--bad); background:rgba(220,38,38,.05); }
+
+    .rlist{ margin:12px 0 0; padding:0; list-style:none; display:grid; gap:10px; }
+    .ritem{ border-radius:14px; border:1px solid rgba(17,24,39,.12); background:rgba(17,24,39,.02); padding:12px; }
+    .rhead{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+    .rstatus{ font-weight:900; }
+    .rstatus.ok{ color:var(--good); }
+    .rstatus.ng{ color:var(--bad); }
+    .rmeta{ color:var(--muted); font-size:12px; }
+    .rexp{ margin-top:8px; color:var(--muted); font-size:13px; line-height:1.65; white-space:pre-wrap; }
+
+    .errorBox{ margin-top:12px; padding:12px; border-radius:14px; border:1px dashed rgba(220,38,38,.35); background:rgba(220,38,38,.04); color:var(--bad); white-space:pre-wrap; line-height:1.6; font-size:13px; display:none; }
+
+    code{ color:var(--accent2); }
+
+    /* ====== Loading overlay ====== */
+    .loadingOverlay{
+      display:none; position:fixed; inset:0; background:rgba(255,255,255,.75);
+      z-index:100; place-items:center;
+    }
+    .loadingOverlay.active{ display:grid; }
+    .spinner{
+      width:40px; height:40px; border:4px solid rgba(37,99,235,.2);
+      border-top-color:var(--accent); border-radius:50%;
+      animation:spin .7s linear infinite;
+    }
+    @keyframes spin{ to{ transform:rotate(360deg); } }
+
+    /* ====== Score ring ====== */
+    .scoreRing{ display:flex; align-items:center; gap:16px; margin:10px 0; }
+    .ring{ position:relative; width:80px; height:80px; }
+    .ring svg{ transform:rotate(-90deg); }
+    .ring .ringText{ position:absolute; inset:0; display:grid; place-items:center; font-size:20px; font-weight:900; }
+
+    /* ====== Keyboard hint ====== */
+    .kbHint{ color:var(--muted); font-size:11px; margin-top:6px; }
+  </style>
+</head>
+<body>
+<div class="loadingOverlay" id="loadingOverlay"><div class="spinner"></div></div>
+<div class="wrap">
+  <header>
+    <h1 id="pageTitle">クイズを選択</h1>
+    <div class="meta" id="meta">—</div>
+  </header>
+
+  <!-- ===== Home ===== -->
+  <section id="home" class="card">
+    <div class="row" style="margin-bottom:12px;">
+      <div class="meta">画像カードからクイズを選んで開始できます。</div>
+      <div class="meta">※画像はリポジトリの <code>assets/</code> に置くのがおすすめ</div>
+    </div>
+    <div class="grid" id="quizGrid"></div>
+  </section>
+
+  <!-- ===== App ===== -->
+  <section id="app">
+    <div class="layout">
+      <div class="card" id="mainCard">
+        <div class="row">
+          <div class="progress" id="progress">—</div>
+          <div class="controls" style="display:flex;gap:12px;flex-wrap:wrap;">
+            <label class="toggle"><input type="checkbox" id="shuffleToggle" checked> 問題シャッフル</label>
+            <label class="toggle"><input type="checkbox" id="instantToggle"> 即時判定＆解説</label>
+            <label class="toggle"><input type="checkbox" id="timerToggle"> タイマー</label>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:6px;">
+          <div class="meta">
+            出題数：
+            <select id="countSelect">
+              <option value="5">5問</option>
+              <option value="10">10問</option>
+              <option value="20" selected>20問</option>
+              <option value="30">30問</option>
+              <option value="50">50問</option>
+              <option value="all">全問</option>
+            </select>
+            ／ 合格ライン：
+            <select id="passSelect">
+              <option value="50">50%</option>
+              <option value="60">60%</option>
+              <option value="70">70%</option>
+              <option value="80" selected>80%</option>
+              <option value="90">90%</option>
+            </select>
+            ／ 制限時間（分）：
+            <select id="minutesSelect">
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="15" selected>15</option>
+              <option value="30">30</option>
+              <option value="45">45</option>
+              <option value="60">60</option>
+            </select>
+          </div>
+          <div class="meta">残り：<span class="timer" id="timer">—</span></div>
+        </div>
+
+        <div class="kbHint">キーボード：<kbd>1〜4</kbd> 選択 ／ <kbd>←→</kbd> 前後移動 ／ <kbd>F</kbd> 見直しフラグ</div>
+
+        <div class="q" id="question">—</div>
+        <div class="choices" id="choices"></div>
+        <div class="hint" id="hint"></div>
+        <div class="errorBox" id="errorBox"></div>
+
+        <div class="btns">
+          <button id="backBtn">← クイズ選択へ戻る</button>
+          <button id="prevBtn">← 前へ</button>
+          <button class="primary" id="nextBtn">次へ →</button>
+          <button id="markBtn">見直しフラグ</button>
+          <button class="danger" id="submitBtn">提出する</button>
+          <button id="restartBtn">最初から（再生成）</button>
+        </div>
+
+        <div class="result" id="result"></div>
+      </div>
+
+      <div class="card">
+        <p class="sideTitle">回答状況</p>
+        <div class="panel">
+          <div class="box">
+            <div class="gridNav" id="navGrid"></div>
+            <div class="chipRow" id="chips"></div>
+            <div class="meta" style="margin-top:10px;">
+              番号クリックでジャンプ／見直しフラグは提出前のチェック用です。
+            </div>
+          </div>
+          <div class="box">
+            <div class="meta">
+              シート列：<code>id, question, A, B, C, D, answer, explanation</code><br>
+              answer：<code>A/B/C/D</code>（または<code>0-3</code>）対応
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ========================= 1) クイズ一覧（ここを編集） ========================= */
+const QUIZZES = [
+  {
+    id: "cb02",
+    title: "消費者行動論2 第2回",
+    desc: "確認テスト",
+    image: "assets/%E7%AC%AC02%E5%9B%9E_%E5%9B%9B%E6%8A%9E%E5%95%8F%E9%A1%8C.jpg",
+    csv: "https://docs.google.com/spreadsheets/d/e/2PACX-1vSTZWe82RkSO44S1unqts1URF7bYW6mgscBA3h3Glf8yAiFe15JEZJ_ZXzblg0KGvw-OSpnBu_UG4ax/pub?output=csv"
+  },
+  {
+    id: "cb03",
+    title: "消費者行動論2 第3回",
+    desc: "確認テスト",
+    image: "assets/%E7%AC%AC03%E5%9B%9E_%E5%9B%9B%E6%8A%9E%E5%95%8F%E9%A1%8C.jpg",
+    csv: "https://docs.google.com/spreadsheets/d/e/2PACX-1vStJ9jsNvlA0_kkQpMSvb_5wgGQl10swstNpZTyAqF_Ytb4cIMBE7aGH8Ola7hItPoa3iG90WyQs2m4/pub?output=csv"
+  }
+];
+
+/* ========================= 2) 状態（グローバル汚染を最小化） ========================= */
+const state = {
+  currentQuiz: null,
+  bank: [],
+  questions: [],
+  idx: 0,
+  answers: [],
+  reviewed: [],
+  revealed: [],
+  submitted: false,
+  mode: "test",
+  timerId: null,
+  endAt: null,
+};
+
+/* ========================= 3) DOM ========================= */
+const $ = id => document.getElementById(id);
+const pageTitle     = $("pageTitle");
+const elMeta        = $("meta");
+const home          = $("home");
+const quizGrid      = $("quizGrid");
+const app           = $("app");
+const elProgress    = $("progress");
+const elQuestion    = $("question");
+const elChoices     = $("choices");
+const elHint        = $("hint");
+const elErrorBox    = $("errorBox");
+const elNavGrid     = $("navGrid");
+const elChips       = $("chips");
+const elResult      = $("result");
+const elTimer       = $("timer");
+const loadingOverlay = $("loadingOverlay");
+const backBtn       = $("backBtn");
+const prevBtn       = $("prevBtn");
+const nextBtn       = $("nextBtn");
+const markBtn       = $("markBtn");
+const submitBtn     = $("submitBtn");
+const restartBtn    = $("restartBtn");
+const shuffleToggle = $("shuffleToggle");
+const instantToggle = $("instantToggle");
+const timerToggle   = $("timerToggle");
+const countSelect   = $("countSelect");
+const passSelect    = $("passSelect");
+const minutesSelect = $("minutesSelect");
+
+/* ========================= 4) ユーティリティ ========================= */
+function escapeHTML(s) {
+  return String(s ?? "")
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+}
+
+function label(i) {
+  return (i === null || i === undefined) ? "—" : String.fromCharCode(65 + i);
+}
+
+function shuffleArray(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ========================= 5) CSV 読み込み・正規化 ========================= */
+function parseCSV(text) {
+  const rows = [];
+  let row = [], cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], n = text[i + 1];
+    if (c === '"' && n === '"') { cur += '"'; i++; continue; }
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === ',' && !inQ) { row.push(cur); cur = ""; continue; }
+    if ((c === '\n' || c === '\r') && !inQ) {
+      if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+      row = []; cur = "";
+      continue;
+    }
+    cur += c;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+function normHeader(s) {
+  return String(s ?? "").trim().replace(/^﻿/, "").replace(/\s+/g, "").toLowerCase();
+}
+
+const HEADER_ALIASES = {
+  id:          ["id","qid","番号","no","no.","問題id","設問id"],
+  question:    ["question","q","問題","設問","問い","質問","問"],
+  a:           ["a","選択肢a","選択a","a選択肢"],
+  b:           ["b","選択肢b","選択b","b選択肢"],
+  c:           ["c","選択肢c","選択c","c選択肢"],
+  d:           ["d","選択肢d","選択d","d選択肢"],
+  answer:      ["answer","正解","解答","答え","解","正答","correct"],
+  explanation: ["explanation","解説","説明","理由","補足"],
+};
+
+function findCol(headerNorm, keys) {
+  for (const k of keys) {
+    const kk = normHeader(k);
+    if (kk in headerNorm) return headerNorm[kk];
+  }
+  return null;
+}
+
+function toAnswerIndex(a) {
+  const s = String(a ?? "").trim().toUpperCase();
+  if (["A","B","C","D"].includes(s)) return s.charCodeAt(0) - 65;
+  const n = Number(s);
+  if (!Number.isNaN(n) && n >= 0 && n <= 3) return n;
+  throw new Error(`answerが不正（A/B/C/D or 0-3）：${a}`);
+}
+
+/* FIX: rows.slice(1)で元配列を破壊しない */
+function normalize(rows) {
+  const header = rows[0];
+  const dataRows = rows.slice(1);
+
+  const headerNorm = {};
+  header.forEach((h, i) => { headerNorm[normHeader(h)] = i; });
+
+  const iQ  = findCol(headerNorm, HEADER_ALIASES.question);
+  const iA  = findCol(headerNorm, HEADER_ALIASES.a);
+  const iB  = findCol(headerNorm, HEADER_ALIASES.b);
+  const iC  = findCol(headerNorm, HEADER_ALIASES.c);
+  const iD  = findCol(headerNorm, HEADER_ALIASES.d);
+  const iAn = findCol(headerNorm, HEADER_ALIASES.answer);
+  const iId = findCol(headerNorm, HEADER_ALIASES.id);
+  const iEx = findCol(headerNorm, HEADER_ALIASES.explanation);
+
+  if ([iQ, iA, iB, iC, iD, iAn].some(v => v === null)) {
+    throw new Error("ヘッダー不足：question(問題), A, B, C, D, answer(正解) が必要です。");
+  }
+
+  const data = dataRows
+    .filter(r => r.join("").trim() !== "")
+    .map((r, n) => {
+      const q = {
+        id:          iId !== null ? String(r[iId] ?? "").trim() : `row${n + 2}`,
+        q:           String(r[iQ] ?? "").trim(),
+        choices:     [r[iA], r[iB], r[iC], r[iD]].map(x => String(x ?? "").trim()),
+        correct:     toAnswerIndex(r[iAn]),
+        explanation: iEx !== null ? String(r[iEx] ?? "").trim() : "",
+      };
+      if (!q.q)                       throw new Error(`${n + 2}行目: 問題文が空です`);
+      if (q.choices.some(x => !x))   throw new Error(`${n + 2}行目: 選択肢A〜Dのどれかが空です`);
+      return q;
+    });
+
+  if (data.length === 0) throw new Error("問題が0件です。");
+  return data;
+}
+
+/* ========================= 6) タイマー ========================= */
+function clearTimer() {
+  if (state.timerId) { clearInterval(state.timerId); state.timerId = null; }
+  state.endAt = null;
+  elTimer.textContent = "—";
+  elTimer.classList.remove("warn", "dead");
+}
+
+function setupTimer() {
+  clearTimer();
+  if (!timerToggle.checked) return;
+  const minutes = Number(minutesSelect.value);
+  state.endAt = Date.now() + minutes * 60 * 1000;
+  tickTimer();
+  /* FIX: 250ms→1000msでCPU負荷軽減 */
+  state.timerId = setInterval(tickTimer, 1000);
+}
+
+function tickTimer() {
+  if (!state.endAt) return;
+  const left     = Math.max(0, state.endAt - Date.now());
+  const totalSec = Math.ceil(left / 1000);
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+  const ss = String(totalSec % 60).padStart(2, "0");
+  elTimer.textContent = `${mm}:${ss}`;
+  elTimer.classList.toggle("warn", totalSec <= 60 && totalSec > 0);
+  elTimer.classList.toggle("dead", totalSec === 0);
+  if (totalSec === 0) { clearTimer(); submit(true); }
+}
+
+/* ========================= 7) テスト生成・表示 ========================= */
+function buildTest() {
+  const wantShuffle = shuffleToggle.checked;
+  const countVal    = countSelect.value;
+  let pool = [...state.bank];
+  if (wantShuffle) shuffleArray(pool);
+  const take = countVal === "all" ? pool.length : Math.min(pool.length, Number(countVal));
+  state.questions = wantShuffle ? pool.slice(0, take) : [...state.bank].slice(0, take);
+  state.idx       = 0;
+  state.answers   = Array(state.questions.length).fill(null);
+  state.reviewed  = Array(state.questions.length).fill(false);
+  state.revealed  = Array(state.questions.length).fill(false);
+  state.submitted = false;
+
+  elResult.style.display = "none";
+  elHint.style.display   = "none";
+  elErrorBox.style.display = "none";
+  elErrorBox.textContent   = "";
+
+  setupTimer();
+  renderAll();
+}
+
+function renderAll() {
+  elMeta.textContent =
+    `「${state.currentQuiz?.title ?? ""}」：全${state.bank.length}問から ${state.questions.length}問` +
+    (state.mode === "practice" ? "（練習モード）" : "");
+  elProgress.textContent = `Q${state.idx + 1} / ${state.questions.length}`;
+  renderNav();
+  renderChips();
+  renderQuestion();
+}
+
+function renderNav() {
+  elNavGrid.innerHTML = "";
+  for (let i = 0; i < state.questions.length; i++) {
+    const b = document.createElement("button");
+    b.className  = "navBtn";
+    b.textContent = String(i + 1);
+    b.classList.toggle("current",  i === state.idx);
+    b.classList.toggle("answered", state.answers[i] !== null);
+    if (state.reviewed[i]) b.classList.add("review");
+    b.addEventListener("click", () => { state.idx = i; renderAll(); });
+    elNavGrid.appendChild(b);
+  }
+}
+
+function renderChips() {
+  const total         = state.questions.length;
+  const answeredCount = state.answers.filter(a => a !== null).length;
+  const reviewCount   = state.reviewed.filter(v => v).length;
+  elChips.innerHTML = `
+    <span class="chip">回答済み <strong style="color:var(--text)">${answeredCount}</strong> / ${total}</span>
+    <span class="chip">未回答 <strong style="color:var(--text)">${total - answeredCount}</strong></span>
+    <span class="chip">見直し <strong style="color:var(--text)">${reviewCount}</strong></span>
+  `;
+}
+
+function renderQuestion() {
+  const q = state.questions[state.idx];
+  /* FIX: textContentで問題文をセット（XSS不可） */
+  elQuestion.textContent = q.q;
+
+  prevBtn.disabled  = state.idx === 0;
+  nextBtn.disabled  = state.idx === state.questions.length - 1;
+  submitBtn.disabled = state.mode === "practice";
+
+  elHint.style.display = "none";
+  if ((instantToggle.checked || state.mode === "practice") && state.revealed[state.idx]) {
+    const ok = state.answers[state.idx] === q.correct;
+    elHint.textContent = `${ok ? "✅ 正解！" : "❌ 不正解…"}　${q.explanation || "解説はありません。"}`;
+    elHint.style.display = "block";
+  }
+
+  elChoices.innerHTML = "";
+  q.choices.forEach((text, i) => {
+    const div   = document.createElement("div");
+    div.className = "choice";
+
+    const badge = document.createElement("div");
+    badge.className  = "badge";
+    badge.textContent = String.fromCharCode(65 + i);
+
+    const t = document.createElement("div");
+    /* FIX: textContentで選択肢をセット（XSS不可） */
+    t.textContent = text;
+
+    div.appendChild(badge);
+    div.appendChild(t);
+
+    const selected = state.answers[state.idx];
+    const fixed    = state.submitted || ((instantToggle.checked || state.mode === "practice") && state.revealed[state.idx]);
+
+    if (fixed) {
+      div.classList.add("disabled");
+      if (i === q.correct) div.classList.add("correct");
+      if (selected !== null && i === selected && selected !== q.correct) div.classList.add("wrong");
+    } else {
+      if (selected === i) div.classList.add("selected");
+      div.addEventListener("click", () => choose(i));
+    }
+    elChoices.appendChild(div);
+  });
+}
+
+function choose(i) {
+  if (state.submitted) return;
+  state.answers[state.idx] = i;
+  if (state.mode === "practice" || instantToggle.checked) {
+    state.revealed[state.idx] = true;
+  }
+  elResult.style.display = "none";
+  renderAll();
+}
+
+function submit(auto = false) {
+  if (state.mode === "practice" || state.submitted) return;
+  state.submitted = true;
+  clearTimer();
+
+  const unanswered = state.answers.filter(a => a === null).length;
+  if (!auto && unanswered > 0) {
+    if (!confirm(`未回答が ${unanswered} 問あります。提出しますか？（未回答は不正解扱い）`)) {
+      state.submitted = false;
+      setupTimer();
+      renderAll();
+      return;
+    }
+  }
+  showResult(auto);
+  renderAll();
+}
+
+/* ========================= 8) 結果表示 ========================= */
+function makeScoreRing(pct, passed) {
+  const r   = 34;
+  const circ = 2 * Math.PI * r;
+  const dash  = (pct / 100) * circ;
+  const color = passed ? "#16a34a" : "#dc2626";
+  return `
+    <div class="ring">
+      <svg width="80" height="80" viewBox="0 0 80 80">
+        <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(17,24,39,.1)" stroke-width="8"/>
+        <circle cx="40" cy="40" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+          stroke-dasharray="${dash.toFixed(1)} ${circ.toFixed(1)}" stroke-linecap="round"/>
+      </svg>
+      <div class="ringText" style="color:${color}">${pct}%</div>
+    </div>`;
+}
+
+function showResult(auto) {
+  const pass    = Number(passSelect.value);
+  const details = state.questions.map((q, i) => ({
+    i, q,
+    your: state.answers[i],
+    ok:   state.answers[i] !== null && state.answers[i] === q.correct,
+  }));
+
+  const total        = state.questions.length;
+  const correctCount = details.filter(d => d.ok).length;
+  const pct          = total === 0 ? 0 : Math.round((correctCount / total) * 100);
+  const passed       = pct >= pass;
+
+  /* FIX: 結果リストもすべてescapeHTML済み */
+  const pills = details.map(d =>
+    `<span class="pill ${d.ok ? "ok" : "ng"}">Q${d.i + 1} ${d.ok ? "✓" : "×"}</span>`
+  ).join("");
+
+  const list = details.map(d => `
+    <li class="ritem">
+      <div class="rhead">
+        <div><strong>Q${d.i + 1}：</strong><span class="rstatus ${d.ok ? "ok" : "ng"}">${d.ok ? "正解" : "不正解"}</span></div>
+        <div class="rmeta">あなた：${label(d.your)} ／ 正解：${label(d.q.correct)}</div>
+      </div>
+      <div class="rmeta" style="margin-top:6px;">${escapeHTML(d.q.q)}</div>
+      <div class="rexp">${escapeHTML(d.q.explanation || "解説はありません。")}</div>
+    </li>
+  `).join("");
+
+  const wrongQs = details.filter(d => !d.ok).map(d => d.q);
+
+  elResult.innerHTML = `
+    <div class="scoreRing">
+      ${makeScoreRing(pct, passed)}
+      <div>
+        <h2 style="margin:0 0 4px;">${correctCount} / ${total}問正解 ${passed ? "✅ 合格" : "❌ 不合格"}</h2>
+        <div class="meta">${auto ? "※タイマー終了で自動提出しました。" : ""} 合格ライン：${pass}%</div>
+      </div>
+    </div>
+    <div class="pillbar">${pills}</div>
+    <div class="btns" style="margin-top:14px;">
+      <button class="primary" id="retryWrongBtn">間違いだけ復習（${wrongQs.length}問）</button>
+      <button id="retryAllBtn">同条件で最初から</button>
+    </div>
+    <div class="meta" style="margin-top:10px;">全問の解説一覧：</div>
+    <ul class="rlist">${list}</ul>
+  `;
+  elResult.style.display = "block";
+
+  $("retryAllBtn").onclick = () => buildTest();
+  $("retryWrongBtn").onclick = () => {
+    if (wrongQs.length === 0) { alert("全問正解です！"); return; }
+    state.questions = wrongQs;
+    state.idx       = 0;
+    state.answers   = Array(wrongQs.length).fill(null);
+    state.reviewed  = Array(wrongQs.length).fill(false);
+    state.revealed  = Array(wrongQs.length).fill(false);
+    state.submitted = false;
+    elResult.style.display = "none";
+    setupTimer();
+    renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+}
+
+/* ========================= 9) 画面切り替え ========================= */
+function goHome() {
+  clearTimer();
+  Object.assign(state, { currentQuiz: null, mode: "test" });
+  pageTitle.textContent = "クイズを選択";
+  elMeta.textContent    = "—";
+  home.style.display    = "block";
+  app.style.display     = "none";
+  renderHome();
+  if (location.hash) history.replaceState(null, "", location.pathname);
+}
+
+function showApp() {
+  pageTitle.textContent = (state.currentQuiz?.title ?? "四択テスト") + (state.mode === "practice" ? "（練習）" : "");
+  home.style.display = "none";
+  app.style.display  = "block";
+}
+
+/* ========================= 10) ホーム描画 ========================= */
+function renderHome() {
+  quizGrid.innerHTML = "";
+  QUIZZES.forEach(qz => {
+    const el = document.createElement("div");
+    el.className = "qcard";
+
+    /* FIX: QUIZZES データもすべてescapeHTML／DOM APIでセット */
+    const img = document.createElement("img");
+    img.className = "thumb";
+    img.src = qz.image;   /* imageはURLパスなのでそのまま使用 */
+    img.alt = "";
+
+    const body = document.createElement("div");
+    body.className = "qbody";
+
+    const title = document.createElement("p");
+    title.className   = "qtitle";
+    title.textContent = qz.title;
+
+    const desc = document.createElement("p");
+    desc.className   = "qdesc";
+    desc.textContent = qz.desc ?? "";
+
+    const meta = document.createElement("div");
+    meta.className   = "qmeta";
+    meta.innerHTML   = `
+      <span class="chip">出題：<strong style="color:var(--text)">${escapeHTML(String(qz.defaultCount ?? 20))}</strong></span>
+      <span class="chip">合格：<strong style="color:var(--text)">${escapeHTML(String(qz.defaultPass ?? 80))}%</strong></span>
+      <span class="chip">時間：<strong style="color:var(--text)">${escapeHTML(String(qz.defaultMinutes ?? 15))}分</strong></span>
+    `;
+
+    const actions = document.createElement("div");
+    actions.className = "qactions";
+
+    const btnTest = document.createElement("button");
+    btnTest.className   = "primary";
+    btnTest.textContent = "テスト開始";
+    btnTest.onclick     = () => startQuiz(qz.id, "test");
+
+    const btnPrac = document.createElement("button");
+    btnPrac.textContent = "練習開始（即時判定）";
+    btnPrac.onclick     = () => startQuiz(qz.id, "practice");
+
+    actions.appendChild(btnTest);
+    actions.appendChild(btnPrac);
+    body.appendChild(title);
+    body.appendChild(desc);
+    body.appendChild(meta);
+    body.appendChild(actions);
+    el.appendChild(img);
+    el.appendChild(body);
+    quizGrid.appendChild(el);
+  });
+}
+
+/* ========================= 11) クイズ開始（CSV 読み込み） ========================= */
+async function startQuiz(quizId, selectedMode = "test") {
+  const qz = QUIZZES.find(x => x.id === quizId);
+  if (!qz) return;
+
+  state.currentQuiz = qz;
+  state.mode        = selectedMode;
+
+  countSelect.value   = String(qz.defaultCount   ?? 20);
+  passSelect.value    = String(qz.defaultPass     ?? 80);
+  minutesSelect.value = String(qz.defaultMinutes  ?? 15);
+
+  if (state.mode === "practice") {
+    instantToggle.checked  = true;
+    instantToggle.disabled = true;
+    timerToggle.checked    = false;
+    timerToggle.disabled   = true;
+  } else {
+    instantToggle.disabled = false;
+    timerToggle.disabled   = false;
+  }
+
+  location.hash = quizId + (state.mode === "practice" ? ":practice" : ":test");
+  showApp();
+  elMeta.textContent = "読み込み中…";
+  elErrorBox.style.display = "none";
+  elErrorBox.textContent   = "";
+  loadingOverlay.classList.add("active");
+
+  try {
+    const res = await fetch(qz.csv, { cache: "no-store" });
+
+    /* FIX: CORSエラーとHTTPエラーを分けて案内 */
+    if (!res.ok) {
+      throw new Error(
+        `CSV取得失敗（HTTP ${res.status}）。\n` +
+        "Google Sheetsが「ウェブに公開」されているか確認してください。"
+      );
+    }
+
+    const csv = await res.text();
+    if (csv.trim().startsWith("<!doctype") || csv.toLowerCase().includes("<html")) {
+      throw new Error(
+        "CSVではなくHTMLが返っています。\n" +
+        "Google SheetsのURLを pub?output=csv の形にしてください。"
+      );
+    }
+
+    const rows  = parseCSV(csv);
+    state.bank  = normalize(rows);   /* FIX: normalize内でrows変更なし */
+    buildTest();
+  } catch (e) {
+    clearTimer();
+    elMeta.textContent = "読み込みエラー";
+    elErrorBox.style.display = "block";
+    /* FIX: エラーメッセージもtextContentでセット */
+    elErrorBox.textContent =
+      "読み込みエラー：\n" + e.message +
+      "\n\n対策：\n" +
+      "1) シートを「ファイル → 共有 → ウェブに公開」でCSV公開\n" +
+      "2) URLが .../pub?output=csv の形か確認\n" +
+      "3) 1行目ヘッダーに question, A, B, C, D, answer があるか確認";
+    console.error(e);
+  } finally {
+    loadingOverlay.classList.remove("active");
+  }
+}
+
+/* ========================= 12) イベント ========================= */
+backBtn.onclick  = () => goHome();
+prevBtn.onclick  = () => { state.idx = Math.max(0, state.idx - 1); renderAll(); };
+nextBtn.onclick  = () => { state.idx = Math.min(state.questions.length - 1, state.idx + 1); renderAll(); };
+markBtn.onclick  = () => { state.reviewed[state.idx] = !state.reviewed[state.idx]; renderAll(); };
+submitBtn.onclick = () => submit(false);
+restartBtn.onclick = () => { if (confirm("出題セットを再生成して最初からやり直しますか？")) buildTest(); };
+
+[timerToggle, minutesSelect].forEach(el => el.onchange = () => setupTimer());
+
+/* ========================= 13) キーボードショートカット ========================= */
+document.addEventListener("keydown", e => {
+  if (app.style.display === "none") return;
+  if (state.submitted) return;
+  if (["INPUT","SELECT","TEXTAREA"].includes(e.target.tagName)) return;
+
+  if (e.key === "ArrowLeft")  { prevBtn.click(); return; }
+  if (e.key === "ArrowRight") { nextBtn.click(); return; }
+  if (e.key.toLowerCase() === "f") { markBtn.click(); return; }
+
+  const num = Number(e.key);
+  if (num >= 1 && num <= 4) choose(num - 1);
+});
+
+/* ========================= 14) ルーティング ========================= */
+function onRoute() {
+  const raw = (location.hash || "").replace("#", "").trim();
+  if (!raw) { goHome(); return; }
+  const [id, m] = raw.split(":");
+  renderHome();
+  startQuiz(id, m === "practice" ? "practice" : "test");
+}
+
+renderHome();
+onRoute();
+window.addEventListener("hashchange", onRoute);
+</script>
+</body>
+</html>
